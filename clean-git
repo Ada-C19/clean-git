@@ -1,0 +1,12 @@
+#!/usr/bin/env zsh
+
+GIT_STAT=$(git branch)
+MAIN_CHECK=$(echo $GIT_STAT | grep "\* main")
+
+if [[ ! -n "$MAIN_CHECK" ]]; then
+    echo "Please switch main"
+    exit 1
+fi
+
+NON_MAIN=$(echo $GIT_STAT | grep -v "\* main")
+echo $NON_MAIN
