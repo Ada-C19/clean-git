@@ -1,12 +1,72 @@
 #!/usr/bin/env zsh
 
-GIT_STAT=$(git branch)
-MAIN_CHECK=$(echo $GIT_STAT | grep "\* main")
+FLAG=$1
 
-if [[ ! -n "$MAIN_CHECK" ]]; then
-    echo "Please switch main"
+if [[ $FLAG == "-s" ]]; then
+    SWITCH=1
+elif [[ $FLAG == "-f" ]]; then
+    FORCE=1
+fi
+
+# Check whether we're on the main branch (the
+# output will be non-empty if main was active)
+MAIN_CHECK=$(git branch | grep "\* main")
+
+# If not in main branch and neither special flag
+# is set, print usage and exit
+if [[ ! -n "$MAIN_CHECK" && ! $SWITCH && ! $FORCE ]]; then
+    echo "Error: script assumes main is the default branch"
+    echo "Please either:"
+    echo "1) switch to the main branch,"
+    echo "2) pass the -s option to automatically switch back to main, or"
+    echo "3) pass the -f option to treat the current branch as default"
     exit 1
 fi
 
-NON_MAIN=$(echo $GIT_STAT | grep -v "\* main")
-echo $NON_MAIN
+# If not in main, and auto switch flag is set,
+# try to swicth back to main
+if [[ ! -n "$MAIN_CHECK" && $SWITCH ]]; then
+    git switch main 2>/dev/null
+
+    # exit if the switch failed
+    if [[ $? -ne 0 ]]; then
+        echo "Error: unable to switch to main branch"
+        exit 2
+    fi
+fi
+
+# Get the list of branches to clean up (any branches
+# not currently the active branch)
+TO_DELETE=$(git branch | grep -v "^\*")
+#echo $TO_DELETE
+
+# Iterate over the branches and delete each
+# using a for/in style loop
+# The ${=VAR} style of reading the value forces the
+# shell to split the output into records using any
+# whitespaces as delimeters (roughly). Some other
+# shells apply this splitting automatically.
+
+for BRANCH in ${=TO_DELETE}; do
+    # Echoing with something around the value (here
+    # the []) can help us debug the precise value
+    # held by a vairable (if we need to be sure that
+    # leading/trailing whitespace has been removed)
+
+    # echo "[$BRANCH]"
+    git branch -D $BRANCH >/dev/null
+done
+
+# Or, iterate over the branches and delete each
+# using a while style loop
+
+# read will read the input split on whitespace
+# (roughly). The <<< notation is similar to
+# HEREDOC, except that instead of providing the
+# literal text for stdin, we provide a variable
+# with the value to use for stdin
+
+# while read BRANCH; do
+#     # echo "[$BRANCH]"
+#     git branch -D $BRANCH >/dev/null
+# done <<<"$TO_DELETE"
